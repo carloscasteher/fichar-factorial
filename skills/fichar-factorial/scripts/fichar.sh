@@ -9,15 +9,15 @@ CONFIG_FILE="$CONFIG_DIR/config"
 ZSHRC="${ZDOTDIR:-$HOME}/.zshrc"
 ZSH_BLOCK_START="# >>> fichar-factorial >>>"
 ZSH_BLOCK_END="# <<< fichar-factorial <<<"
-SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
 
-die() {
-  printf 'error: %s\n' "$*" >&2
-  exit 1
-}
+source "$SCRIPT_DIR/ui.sh"
 
 usage() {
   cat <<EOF
+$(paint 1 "fichar-factorial")
+
 Uso: $(basename "$0") <comando> [opciones]
 
 Comandos:
@@ -111,6 +111,13 @@ credentials_source() {
   esac
 }
 
+credentials_account() {
+  case "$1" in
+    llavero) keychain_account ;;
+    zsh) load_zsh_env && printf '%s' "$FACTORIAL_USER_EMAIL" ;;
+  esac
+}
+
 load_credentials() {
   case "$(credentials_source)" in
     llavero)
@@ -122,10 +129,13 @@ load_credentials() {
       load_zsh_env
       ;;
     *)
-      die "no hay credenciales guardadas; ejecuta en tu terminal «$SCRIPT guardar-credenciales llavero» o «$SCRIPT guardar-credenciales zsh»"
+      die "No hay credenciales guardadas" \
+        "Guárdalas desde tu terminal con uno de estos comandos:" \
+        "$SCRIPT guardar-credenciales llavero" \
+        "$SCRIPT guardar-credenciales zsh"
       ;;
   esac
-  [ -n "${FACTORIAL_USER_EMAIL:-}" ] && [ -n "${FACTORIAL_USER_PASSWORD:-}" ] || die "las credenciales guardadas están incompletas"
+  [ -n "${FACTORIAL_USER_EMAIL:-}" ] && [ -n "${FACTORIAL_USER_PASSWORD:-}" ] || die "Las credenciales guardadas están incompletas"
 }
 
 runner() {
@@ -143,33 +153,64 @@ schedule_complete() {
 }
 
 cmd_estado() {
-  local source
+  local source account
   source="$(credentials_source)"
-  echo "credenciales: $source"
-  case "$source" in
-    llavero) echo "cuenta: $(keychain_account)" ;;
-    zsh) load_zsh_env && echo "cuenta: $FACTORIAL_USER_EMAIL" ;;
-  esac
+  account="$(credentials_account "$source" || true)"
+
+  if [ ! -t 1 ]; then
+    echo "credenciales: $source"
+    [ -n "$account" ] && echo "cuenta: $account"
+    if schedule_complete; then
+      echo "configuracion: ok"
+      echo "entrada: $(config_get FICHAR_ENTRADA)"
+      echo "salida: $(config_get FICHAR_SALIDA)"
+      echo "aleatorio: $(config_get FICHAR_ALEATORIO)"
+      echo "proyecto: $(config_get FICHAR_PROYECTO)"
+      echo "horario: $(schedule_text "$(config_get FICHAR_ENTRADA)" "$(config_get FICHAR_SALIDA)" "$(config_get FICHAR_ALEATORIO)")"
+    else
+      echo "configuracion: falta"
+    fi
+    echo "fichero: $CONFIG_FILE"
+    echo "ejecutor: $(runner)"
+    if command -v node >/dev/null 2>&1; then
+      echo "node: $(node --version)"
+    else
+      echo "node: falta"
+    fi
+    return 0
+  fi
+
+  title "estado"
+  echo
+  if [ "$source" = "ninguna" ]; then
+    row "Credenciales" fail "sin guardar"
+  else
+    row "Credenciales" ok "$source · $account"
+  fi
   if schedule_complete; then
-    echo "configuracion: ok"
-    echo "entrada: $(config_get FICHAR_ENTRADA)"
-    echo "salida: $(config_get FICHAR_SALIDA)"
-    echo "aleatorio: $(config_get FICHAR_ALEATORIO)"
-    echo "proyecto: $(config_get FICHAR_PROYECTO)"
+    local project
+    project="$(config_get FICHAR_PROYECTO)"
+    row "Horario" ok "$(schedule_text "$(config_get FICHAR_ENTRADA)" "$(config_get FICHAR_SALIDA)" "$(config_get FICHAR_ALEATORIO)")"
+    row "Proyecto" "" "${project:-ninguno}"
   else
-    echo "configuracion: falta"
+    row "Horario" fail "sin configurar"
   fi
-  echo "fichero: $CONFIG_FILE"
-  echo "ejecutor: $(runner)"
   if command -v node >/dev/null 2>&1; then
-    echo "node: $(node --version)"
+    row "Node" ok "$(node --version)"
   else
-    echo "node: falta"
+    row "Node" fail "no instalado (hace falta la 18 o superior)"
   fi
+  if [ "$(runner)" = "ninguno" ]; then
+    row "Ejecutor" fail "no hay pnpm ni npx"
+  else
+    row "Ejecutor" ok "$(runner)"
+  fi
+  row "Config" "" "$(tilde "$CONFIG_FILE")"
+  echo
 }
 
 require_tty() {
-  [ -t 0 ] || die "este comando pide la contraseña: ejecútalo tú en una terminal, no desde el agente"
+  [ -t 0 ] || die "Este comando pide la contraseña" "Ejecútalo tú en una terminal, no desde el agente."
 }
 
 cmd_guardar_credenciales() {
@@ -177,22 +218,22 @@ cmd_guardar_credenciales() {
   local email password
   case "$target" in
     llavero)
-      has_keychain || die "el llavero solo está disponible en macOS; usa «zsh»"
+      has_keychain || die "El llavero solo está disponible en macOS" "Usa: $SCRIPT guardar-credenciales zsh"
       require_tty
-      read -r -p "Email de Factorial: " email
-      [ -n "$email" ] || die "el email no puede estar vacío"
+      email="$(ask "Email de Factorial")"
+      [ -n "$email" ] || die "El email no puede estar vacío"
       while security delete-generic-password -s "$KEYCHAIN_SERVICE" >/dev/null 2>&1; do :; done
-      echo "Ahora escribe tu contraseña de Factorial (dos veces, no se verá):"
+      step "Escribe tu contraseña de Factorial dos veces (no se verá)"
       security add-generic-password -s "$KEYCHAIN_SERVICE" -a "$email" -w
       config_set FICHAR_CREDENCIALES llavero
-      echo "Guardadas en el llavero (servicio «$KEYCHAIN_SERVICE»)."
+      ok "Guardadas en el llavero · $email"
       ;;
     zsh)
       require_tty
-      read -r -p "Email de Factorial: " email
-      read -r -s -p "Contraseña de Factorial (no se verá): " password
+      email="$(ask "Email de Factorial")"
+      read -r -s -p "$(prompt_label "Contraseña de Factorial (no se verá)"): " password
       echo
-      [ -n "$email" ] && [ -n "$password" ] || die "el email y la contraseña no pueden estar vacíos"
+      [ -n "$email" ] && [ -n "$password" ] || die "El email y la contraseña no pueden estar vacíos"
       touch "$ZSHRC"
       local tmp
       tmp="$(mktemp)"
@@ -206,41 +247,57 @@ cmd_guardar_credenciales() {
       cat "$tmp" > "$ZSHRC"
       rm -f "$tmp"
       config_set FICHAR_CREDENCIALES zsh
-      echo "Guardadas en $ZSHRC. Abre una terminal nueva para que las coja tu shell."
+      ok "Guardadas en $(tilde "$ZSHRC") · $email"
+      hint "Abre una terminal nueva para que las coja tu shell."
       ;;
     *)
-      die "indica dónde guardarlas: llavero o zsh"
+      die "Indica dónde guardarlas: llavero o zsh"
       ;;
   esac
 }
 
 cmd_comprobar() {
-  command -v node >/dev/null 2>&1 || die "hace falta Node.js 18 o superior"
+  command -v node >/dev/null 2>&1 || die "Hace falta Node.js 18 o superior"
   load_credentials
-  node --input-type=module -e '
-const res = await fetch(process.argv[1], {
-  method: "POST",
-  headers: { "content-type": "application/json", accept: "application/json" },
-  body: JSON.stringify({ email: process.env.FACTORIAL_USER_EMAIL, password: process.env.FACTORIAL_USER_PASSWORD }),
-});
-let body;
-try { body = await res.json(); } catch { body = undefined; }
-const session = res.headers.getSetCookie().some((c) => c.startsWith("_factorial_id="));
-if (res.ok && body?.success && session) {
-  console.log("ok: credenciales válidas");
-  process.exit(0);
+  local result
+  result="$(node --input-type=module -e '
+try {
+  const res = await fetch(process.argv[1], {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ email: process.env.FACTORIAL_USER_EMAIL, password: process.env.FACTORIAL_USER_PASSWORD }),
+  });
+  let body;
+  try { body = await res.json(); } catch { body = undefined; }
+  const session = res.headers.getSetCookie().some((c) => c.startsWith("_factorial_id="));
+  if (res.ok && body?.success && session) console.log("ok");
+  else if (body?.error?.code === "invalid_credentials" || (res.ok && body && !body.success)) console.log("invalid");
+  else if (res.status === 403 && !body) console.log("waf");
+  else console.log(`unexpected:${res.status}`);
+} catch {
+  console.log("network");
 }
-if (body?.error?.code === "invalid_credentials" || (res.ok && body && !body.success)) {
-  console.error("error: email o contraseña incorrectos");
-  process.exit(2);
-}
-if (res.status === 403 && !body) {
-  console.error("error: el cortafuegos de Factorial ha bloqueado el login (HTTP 403); pasa con contraseñas que parecen código, como las que llevan $ o comillas, o tras muchos intentos seguidos. Prueba más tarde o cambia la contraseña");
-  process.exit(3);
-}
-console.error(`error: Factorial ha respondido de forma inesperada (HTTP ${res.status}); puede que la cuenta use solo Google o verificación en dos pasos`);
-process.exit(1);
-' "$LOGIN_URL"
+' "$LOGIN_URL" 2>/dev/null || true)"
+  case "$result" in
+    ok)
+      ok "Credenciales válidas"
+      ;;
+    invalid)
+      die "Email o contraseña incorrectos" \
+        "Vuelve a guardarlas con: $SCRIPT guardar-credenciales llavero (o zsh)"
+      ;;
+    waf)
+      die "El cortafuegos de Factorial ha bloqueado el login (HTTP 403)" \
+        "Suele pasar con contraseñas con \$ o comillas, o tras muchos intentos. Prueba más tarde o cambia la contraseña."
+      ;;
+    network)
+      die "No se ha podido conectar con Factorial" "Revisa tu conexión a internet."
+      ;;
+    *)
+      die "Factorial ha respondido de forma inesperada (HTTP ${result#unexpected:})" \
+        "Puede que tu cuenta use solo Google o la verificación en dos pasos."
+      ;;
+  esac
 }
 
 ENTRADA=""
@@ -262,17 +319,17 @@ parse_options() {
       --anio) ANIO="${2:-}"; shift 2 ;;
       --mes) MES="${2:-}"; shift 2 ;;
       -h|--help) usage; exit 0 ;;
-      *) die "opción desconocida: $1" ;;
+      *) die "Opción desconocida: $1" "Consulta las opciones con: $SCRIPT --help" ;;
     esac
   done
 }
 
 validate_schedule() {
-  is_int "$1" && [ "$1" -ge 0 ] && [ "$1" -le 23 ] || die "la entrada tiene que ser una hora en punto entre 0 y 23"
-  is_int "$2" && [ "$2" -ge 1 ] && [ "$2" -le 24 ] || die "la salida tiene que ser una hora en punto entre 1 y 24"
-  [ "$2" -gt "$1" ] || die "la salida tiene que ser posterior a la entrada"
-  is_int "$3" && [ "$3" -le 59 ] || die "el aleatorio tiene que ser 0 (fijo) o un número de minutos entre 1 y 59"
-  [ $(( ($2 - $1) * 60 )) -gt $(( $3 * 2 )) ] || die "el aleatorio es demasiado grande para esa franja"
+  is_int "$1" && [ "$1" -ge 0 ] && [ "$1" -le 23 ] || die "La entrada tiene que ser una hora en punto entre 0 y 23"
+  is_int "$2" && [ "$2" -ge 1 ] && [ "$2" -le 24 ] || die "La salida tiene que ser una hora en punto entre 1 y 24"
+  [ "$2" -gt "$1" ] || die "La salida tiene que ser posterior a la entrada"
+  is_int "$3" && [ "$3" -le 59 ] || die "El aleatorio tiene que ser 0 (fijo) o un número de minutos entre 1 y 59"
+  [ $(( ($2 - $1) * 60 )) -gt $(( $3 * 2 )) ] || die "El aleatorio es demasiado grande para esa franja"
 }
 
 cmd_configurar() {
@@ -280,7 +337,7 @@ cmd_configurar() {
   local entrada="${ENTRADA:-$(config_get FICHAR_ENTRADA)}"
   local salida="${SALIDA:-$(config_get FICHAR_SALIDA)}"
   local aleatorio="${ALEATORIO:-$(config_get FICHAR_ALEATORIO)}"
-  [ -n "$entrada" ] && [ -n "$salida" ] || die "indica --entrada y --salida"
+  [ -n "$entrada" ] && [ -n "$salida" ] || die "Indica --entrada y --salida"
   aleatorio="${aleatorio:-0}"
   validate_schedule "$entrada" "$salida" "$aleatorio"
   config_set FICHAR_ENTRADA "$entrada"
@@ -289,16 +346,25 @@ cmd_configurar() {
   if [ -n "$PROYECTO_SET" ] || ! config_has FICHAR_PROYECTO; then
     config_set FICHAR_PROYECTO "$PROYECTO"
   fi
-  cmd_estado | grep -E '^(configuracion|entrada|salida|aleatorio|proyecto|fichero):'
+  local project
+  project="$(config_get FICHAR_PROYECTO)"
+  ok "Horario guardado · $(schedule_text "$entrada" "$salida" "$aleatorio") · ${project:-sin proyecto}"
+}
+
+run_cli() {
+  case "$(runner)" in
+    pnpm) pnpm --reporter=silent dlx "factorial-cli@$CLI_VERSION" "$@" ;;
+    npx) npx --yes "factorial-cli@$CLI_VERSION" "$@" ;;
+  esac
 }
 
 cmd_fichar() {
   parse_options "$@"
-  schedule_complete || die "falta la configuración del horario; ejecuta «$SCRIPT configurar --entrada H --salida H --aleatorio N»"
-  is_int "$ANIO" && [ "$ANIO" -ge 2000 ] || die "indica --anio AAAA"
-  is_int "$MES" && [ "$((10#$MES))" -ge 1 ] && [ "$((10#$MES))" -le 12 ] || die "indica --mes entre 1 y 12"
+  schedule_complete || die "Falta la configuración del horario" "Guárdala con: $SCRIPT configurar --entrada H --salida H --aleatorio N"
+  is_int "$ANIO" && [ "$ANIO" -ge 2000 ] || die "Indica el año con --anio AAAA"
+  is_int "$MES" && [ "$((10#$MES))" -ge 1 ] && [ "$((10#$MES))" -le 12 ] || die "Indica el mes con --mes, entre 1 y 12"
   local mes=$((10#$MES))
-  [ $(( ANIO * 100 + mes )) -le "$(date +%Y%m)" ] || die "no se puede fichar un mes futuro"
+  [ $(( ANIO * 100 + mes )) -le "$(date +%Y%m)" ] || die "No se puede fichar un mes futuro"
 
   local entrada="${ENTRADA:-$(config_get FICHAR_ENTRADA)}"
   local salida="${SALIDA:-$(config_get FICHAR_SALIDA)}"
@@ -311,7 +377,8 @@ cmd_fichar() {
   fi
   validate_schedule "$entrada" "$salida" "$aleatorio"
 
-  command -v node >/dev/null 2>&1 || die "hace falta Node.js 18 o superior"
+  command -v node >/dev/null 2>&1 || die "Hace falta Node.js 18 o superior"
+  [ "$(runner)" != "ninguno" ] || die "Hace falta pnpm o npm (npx)"
   load_credentials
 
   local randomness="--randomness=0"
@@ -319,16 +386,8 @@ cmd_fichar() {
   local args=(fill-shifts --year "$ANIO" --month "$mes" --entryHour "$entrada" --exitHour "$salida" "$randomness")
   [ -n "$proyecto" ] && args+=(--project "$proyecto")
 
-  printf 'Fichando %04d-%02d de %02d:00 a %02d:00' "$ANIO" "$mes" "$entrada" "$salida"
-  [ "$aleatorio" -gt 0 ] && printf ', hasta %s min aleatorios dentro de la franja' "$aleatorio"
-  [ -n "$proyecto" ] && printf ', proyecto «%s»' "$proyecto"
-  printf '\n'
-
-  case "$(runner)" in
-    pnpm) pnpm --reporter=silent dlx "factorial-cli@$CLI_VERSION" "${args[@]}" ;;
-    npx) npx --yes "factorial-cli@$CLI_VERSION" "${args[@]}" ;;
-    *) die "hace falta pnpm o npm (npx)" ;;
-  esac
+  { run_cli "${args[@]}" 2>&1 && echo "__EXIT__:0" || echo "__EXIT__:$?"; } \
+    | node "$SCRIPT_DIR/salida.mjs" "$ANIO" "$mes" "$entrada" "$salida" "$aleatorio" "$proyecto" "$UI_COLOR"
 }
 
 main() {

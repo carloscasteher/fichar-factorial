@@ -25,7 +25,7 @@ cd fichar-factorial
 
 El instalador:
 
-1. Enlaza la skill en `~/.claude/skills/fichar-factorial` (un enlace simbólico al repo, así que para actualizar basta con `git pull`). Si ya tenías una carpeta con ese nombre, te pregunta y la mueve a una copia de seguridad.
+1. Enlaza la skill en `~/.claude/skills/fichar-factorial` (un enlace simbólico al repo, así que para actualizar basta con `git pull`). Si ya tenías una carpeta con ese nombre, te pregunta y la mueve a `~/.claude/backups/`, fuera de `skills/` para que el agente no la cargue como otra skill.
 2. Te pregunta dónde guardar tu email y tu contraseña de Factorial, o si ya los tienes en zsh:
    - **Llavero de macOS** (recomendado): servicio `factorial-cli`.
    - **`~/.zshrc`**: un bloque entre `# >>> fichar-factorial >>>` y `# <<< fichar-factorial <<<`. La contraseña queda en texto plano.
@@ -42,7 +42,7 @@ Opciones:
 
 ## Uso
 
-Dile a tu agente «ficha», «ficha este mes», «ficha noviembre» o «ficha el mes pasado». Antes de fichar te enseña el mes, los días y el horario, y espera tu confirmación.
+Dile a tu agente «ficha», «ficha este mes», «ficha noviembre» o «ficha el mes pasado». Antes de fichar te enseña el mes, los días y el horario, y espera tu confirmación. Al terminar verás los días fichados y los días entre semana que se han saltado, para comprobar que no falta ninguna ausencia en Factorial.
 
 ## Cosas a tener en cuenta
 
@@ -71,6 +71,8 @@ $S fichar --anio 2026 --mes 11
 ```
 
 Opciones de `fichar` solo para esa ejecución: `--entrada`, `--salida`, `--aleatorio`, `--proyecto "<nombre>"` y `--sin-proyecto`.
+
+En una terminal la salida va con colores; para quitarlos, define `NO_COLOR=1`. Cuando la salida no es una terminal (por ejemplo, desde el agente), `estado` devuelve líneas `clave: valor`.
 
 ## Seguridad
 

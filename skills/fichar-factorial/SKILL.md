@@ -24,7 +24,7 @@ Todo pasa por `scripts/fichar.sh`, dentro del directorio base de esta skill (te 
 ## Flujo
 
 ### 1. Estado
-Ejecuta `fichar.sh estado`. Devuelve líneas `clave: valor` sin secretos: `credenciales` (`llavero`, `zsh` o `ninguna`), `cuenta`, `configuracion` (`ok` o `falta`), horario, `ejecutor` y `node`.
+Ejecuta `fichar.sh estado`. Desde el agente (sin terminal) devuelve líneas `clave: valor` sin secretos: `credenciales` (`llavero`, `zsh` o `ninguna`), `cuenta`, `configuracion` (`ok` o `falta`), `entrada`, `salida`, `aleatorio`, `proyecto`, `horario` (texto ya formateado), `ejecutor` y `node`. En una terminal sale como tabla con colores.
 
 - Si `node` es `falta` o el `ejecutor` es `ninguno`, dile que instale Node.js 18 o superior (y pnpm, si quiere) y para.
 - Si `credenciales` es `ninguna`, ve al paso 2.
@@ -50,10 +50,11 @@ También puede ejecutar `./install.sh` desde el repo clonado, que hace las crede
 ### 3. Comprobar las credenciales
 Ejecuta `fichar.sh comprobar`. Solo hace login en Factorial; no toca ningún fichaje.
 
-- `ok: credenciales válidas`: sigue.
-- `email o contraseña incorrectos`: que repita el paso 2 en su terminal (sobrescribe lo anterior).
-- `el cortafuegos de Factorial ha bloqueado el login`: pasa con contraseñas que llevan `$` o comillas, o tras muchos intentos. Que pruebe más tarde o cambie la contraseña. No reintentes en bucle.
-- Respuesta inesperada: puede que su cuenta use solo Google o la verificación en dos pasos. Díselo y para.
+- `✔ Credenciales válidas`: sigue.
+- `✖ Email o contraseña incorrectos`: que repita el paso 2 en su terminal (sobrescribe lo anterior).
+- `✖ El cortafuegos de Factorial ha bloqueado el login`: pasa con contraseñas que llevan `$` o comillas, o tras muchos intentos. Que pruebe más tarde o cambie la contraseña. No reintentes en bucle.
+- `✖ No se ha podido conectar con Factorial`: problema de red; que revise la conexión.
+- `✖ Factorial ha respondido de forma inesperada`: puede que su cuenta use solo Google o la verificación en dos pasos. Díselo y para.
 
 En macOS, la primera lectura del llavero puede abrir un diálogo de permiso. Si el comando se queda esperando, dile que pulse «Permitir siempre».
 
@@ -100,10 +101,11 @@ fichar.sh fichar --anio <AAAA> --mes <M>
 Opciones solo para esta ejecución: `--entrada`, `--salida`, `--aleatorio`, `--proyecto "<nombre>"` o `--sin-proyecto`.
 
 ### 8. Resultado
-El CLI escribe `Filling shifts for <día>` por cada día fichado. Resume en una o dos líneas qué días se han fichado y cuáles se han saltado (fines de semana, festivos o ausencias), para que el usuario vea si falta alguna ausencia en Factorial.
+El script traduce la salida del CLI: una cuadrícula con los días fichados (`✔ lun 03`…), el total (`✔ 15 días fichados`) y, si los hay, los días entre semana que se han saltado (`Saltados entre semana: lun 02`). Resume en una o dos líneas qué días se han fichado y cuáles se han saltado, para que el usuario vea si falta alguna ausencia en Factorial.
 
 Errores habituales:
-- `Invalid email or password`: vuelve al paso 2.
-- `Project <nombre> not found`: el nombre no coincide (tildes, mayúsculas…). Pregúntale el nombre exacto, guárdalo con `configurar --proyecto` y vuelve a lanzarlo; no hace falta repetir la confirmación si el mes no cambia.
-- `There should only be one current employee`: es un problema de la cuenta en Factorial; no se arregla desde aquí.
-- Si falla a mitad, el mes puede quedar **a medias** (ya borrado y solo en parte rellenado). Díselo y propón lanzarlo otra vez.
+- `✖ Email o contraseña incorrectos`: vuelve al paso 2.
+- `✖ El proyecto «<nombre>» no existe en Factorial`: el nombre no coincide (tildes, mayúsculas…). Pregúntale el nombre exacto, guárdalo con `configurar --proyecto` y vuelve a lanzarlo; no hace falta repetir la confirmación si el mes no cambia.
+- `✖ Factorial devuelve más de un empleado activo para tu cuenta`: es un problema de la cuenta en Factorial; no se arregla desde aquí.
+- `✖ El CLI de Factorial ha fallado`: debajo van las últimas líneas del error original; resúmeselas.
+- `! El mes puede haber quedado a medias`: ya se borró y solo se rellenó en parte. Díselo y propón lanzarlo otra vez.
