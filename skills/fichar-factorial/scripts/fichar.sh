@@ -21,11 +21,11 @@ $(paint 1 "fichar-factorial")
 Uso: $(basename "$0") <comando> [opciones]
 
 Comandos:
-  estado                                  Muestra credenciales y configuración (sin secretos)
-  guardar-credenciales llavero|zsh        Guarda email y contraseña (interactivo, en tu terminal)
-  comprobar                               Hace login en Factorial para validar las credenciales
-  configurar [opciones de horario]        Guarda el horario por defecto
-  fichar --anio AAAA --mes M [opciones]   Borra y vuelve a rellenar los fichajes del mes
+  estado                                   Muestra credenciales y configuración (sin secretos)
+  guardar-credenciales llavero|zsh         Guarda email y contraseña (interactivo, en tu terminal)
+  comprobar                                Hace login en Factorial para validar las credenciales
+  configurar [opciones de horario]         Guarda el horario por defecto
+  fichar --year AAAA --month M [opciones]  Borra y vuelve a rellenar los fichajes del mes
 
 Opciones de horario:
   --entrada H        Hora de entrada en punto (0-23)
@@ -305,8 +305,8 @@ SALIDA=""
 ALEATORIO=""
 PROYECTO=""
 PROYECTO_SET=""
-ANIO=""
-MES=""
+YEAR=""
+MONTH=""
 
 parse_options() {
   while [ $# -gt 0 ]; do
@@ -316,8 +316,8 @@ parse_options() {
       --aleatorio) ALEATORIO="${2:-}"; shift 2 ;;
       --proyecto) PROYECTO="${2:-}"; PROYECTO_SET=1; shift 2 ;;
       --sin-proyecto) PROYECTO=""; PROYECTO_SET=1; shift ;;
-      --anio) ANIO="${2:-}"; shift 2 ;;
-      --mes) MES="${2:-}"; shift 2 ;;
+      --year) YEAR="${2:-}"; shift 2 ;;
+      --month) MONTH="${2:-}"; shift 2 ;;
       -h|--help) usage; exit 0 ;;
       *) die "Opción desconocida: $1" "Consulta las opciones con: $SCRIPT --help" ;;
     esac
@@ -361,10 +361,10 @@ run_cli() {
 cmd_fichar() {
   parse_options "$@"
   schedule_complete || die "Falta la configuración del horario" "Guárdala con: $SCRIPT configurar --entrada H --salida H --aleatorio N"
-  is_int "$ANIO" && [ "$ANIO" -ge 2000 ] || die "Indica el año con --anio AAAA"
-  is_int "$MES" && [ "$((10#$MES))" -ge 1 ] && [ "$((10#$MES))" -le 12 ] || die "Indica el mes con --mes, entre 1 y 12"
-  local mes=$((10#$MES))
-  [ $(( ANIO * 100 + mes )) -le "$(date +%Y%m)" ] || die "No se puede fichar un mes futuro"
+  is_int "$YEAR" && [ "$YEAR" -ge 2000 ] || die "Indica el año con --year AAAA"
+  is_int "$MONTH" && [ "$((10#$MONTH))" -ge 1 ] && [ "$((10#$MONTH))" -le 12 ] || die "Indica el mes con --month, entre 1 y 12"
+  local mes=$((10#$MONTH))
+  [ $(( YEAR * 100 + mes )) -le "$(date +%Y%m)" ] || die "No se puede fichar un mes futuro"
 
   local entrada="${ENTRADA:-$(config_get FICHAR_ENTRADA)}"
   local salida="${SALIDA:-$(config_get FICHAR_SALIDA)}"
@@ -383,11 +383,11 @@ cmd_fichar() {
 
   local randomness="--randomness=0"
   [ "$aleatorio" -gt 0 ] && randomness="--randomness=-$aleatorio"
-  local args=(fill-shifts --year "$ANIO" --month "$mes" --entryHour "$entrada" --exitHour "$salida" "$randomness")
+  local args=(fill-shifts --year "$YEAR" --month "$mes" --entryHour "$entrada" --exitHour "$salida" "$randomness")
   [ -n "$proyecto" ] && args+=(--project "$proyecto")
 
   { run_cli "${args[@]}" 2>&1 && echo "__EXIT__:0" || echo "__EXIT__:$?"; } \
-    | node "$SCRIPT_DIR/salida.mjs" "$ANIO" "$mes" "$entrada" "$salida" "$aleatorio" "$proyecto" "$UI_COLOR"
+    | node "$SCRIPT_DIR/salida.mjs" "$YEAR" "$mes" "$entrada" "$salida" "$aleatorio" "$proyecto" "$UI_COLOR"
 }
 
 main() {

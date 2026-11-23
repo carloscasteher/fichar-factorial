@@ -95,7 +95,7 @@ Si pide otro horario o quitar el proyecto **solo para esta vez**, pásalo como o
 Lanza el comando desde un directorio temporal (no desde un repo):
 
 ```bash
-fichar.sh fichar --anio <AAAA> --mes <M>
+fichar.sh fichar --year <AAAA> --month <M>
 ```
 
 Opciones solo para esta ejecución: `--entrada`, `--salida`, `--aleatorio`, `--proyecto "<nombre>"` o `--sin-proyecto`.

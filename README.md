@@ -67,7 +67,7 @@ $S estado
 $S guardar-credenciales llavero
 $S comprobar
 $S configurar --entrada 8 --salida 16 --aleatorio 10 --proyecto "Nombre del proyecto"
-$S fichar --anio 2026 --mes 11
+$S fichar --year 2026 --month 11
 ```
 
 Opciones de `fichar` solo para esa ejecución: `--entrada`, `--salida`, `--aleatorio`, `--proyecto "<nombre>"` y `--sin-proyecto`.
