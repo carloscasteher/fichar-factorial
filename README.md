@@ -83,4 +83,4 @@ Opciones de `fichar` solo para esa ejecución: `--entrada`, `--salida`, `--aleat
 
 [`factorial-cli`](https://github.com/DanielRamosAcosta/factorial-cli) es de Daniel Ramos Acosta, con licencia MIT.
 
-Este repo tiene licencia [MIT](LICENSE): cualquiera puede usarlo, copiarlo, modificarlo y redistribuirlo, también con fines comerciales, siempre que mantenga el aviso de copyright.
+Este repo es de dominio público ([The Unlicense](LICENSE)): no tiene copyright ni se reserva ningún derecho. Cualquiera puede usarlo, copiarlo, modificarlo y redistribuirlo para lo que quiera, sin necesidad de citar a nadie. `factorial-cli` no está incluido en este repo: se descarga al fichar y mantiene su propia licencia.
