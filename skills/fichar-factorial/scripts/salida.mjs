@@ -47,12 +47,12 @@ const KNOWN_ERRORS = [
   {
     pattern: /Project (?!\$\{)(.+) not found/,
     message: (match) => `El proyecto «${match[1]}» no existe en Factorial`,
-    hints: ["Revisa el nombre exacto (tildes, mayúsculas…) y guárdalo con: fichar.sh configurar --proyecto \"<nombre>\""],
+    hints: ["Revisa el nombre exacto (tildes, mayúsculas…) y guárdalo con: factorial.sh configure --project \"<nombre>\""],
   },
   {
     pattern: /Invalid email or password/,
     message: () => "Email o contraseña incorrectos",
-    hints: ["Vuelve a guardarlas con: fichar.sh guardar-credenciales llavero (o zsh)"],
+    hints: ["Vuelve a guardarlas con: factorial.sh save-credentials keychain (o zsh)"],
   },
   {
     pattern: /There should only be one current employee/,

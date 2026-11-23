@@ -21,18 +21,18 @@ $(paint 1 "fichar-factorial")
 Uso: $(basename "$0") <comando> [opciones]
 
 Comandos:
-  estado                                   Muestra credenciales y configuración (sin secretos)
-  guardar-credenciales llavero|zsh         Guarda email y contraseña (interactivo, en tu terminal)
-  comprobar                                Hace login en Factorial para validar las credenciales
-  configurar [opciones de horario]         Guarda el horario por defecto
-  fichar --year AAAA --month M [opciones]  Borra y vuelve a rellenar los fichajes del mes
+  status                                  Muestra credenciales y configuración (sin secretos)
+  save-credentials keychain|zsh           Guarda email y contraseña (interactivo, en tu terminal)
+  check                                   Hace login en Factorial para validar las credenciales
+  configure [opciones de horario]         Guarda el horario por defecto
+  fill --year AAAA --month M [opciones]   Borra y vuelve a rellenar los fichajes del mes
 
 Opciones de horario:
-  --entrada H        Hora de entrada en punto (0-23)
-  --salida H         Hora de salida en punto (1-24, mayor que la entrada)
-  --aleatorio N      0 = horario fijo; N = minutos aleatorios (1-59) dentro de la franja
-  --proyecto NOMBRE  Proyecto de Factorial (nombre exacto)
-  --sin-proyecto     No asignar proyecto
+  --entry H          Hora de entrada en punto (0-23)
+  --exit H           Hora de salida en punto (1-24, mayor que la entrada)
+  --random N         0 = horario fijo; N = minutos aleatorios (1-59) dentro de la franja
+  --project NOMBRE   Proyecto de Factorial (nombre exacto)
+  --no-project       No asignar proyecto
 EOF
 }
 
@@ -131,8 +131,8 @@ load_credentials() {
     *)
       die "No hay credenciales guardadas" \
         "Guárdalas desde tu terminal con uno de estos comandos:" \
-        "$SCRIPT guardar-credenciales llavero" \
-        "$SCRIPT guardar-credenciales zsh"
+        "$SCRIPT save-credentials keychain" \
+        "$SCRIPT save-credentials zsh"
       ;;
   esac
   [ -n "${FACTORIAL_USER_EMAIL:-}" ] && [ -n "${FACTORIAL_USER_PASSWORD:-}" ] || die "Las credenciales guardadas están incompletas"
@@ -152,7 +152,7 @@ schedule_complete() {
   config_has FICHAR_ENTRADA && config_has FICHAR_SALIDA && config_has FICHAR_ALEATORIO && config_has FICHAR_PROYECTO
 }
 
-cmd_estado() {
+cmd_status() {
   local source account
   source="$(credentials_source)"
   account="$(credentials_account "$source" || true)"
@@ -213,12 +213,12 @@ require_tty() {
   [ -t 0 ] || die "Este comando pide la contraseña" "Ejecútalo tú en una terminal, no desde el agente."
 }
 
-cmd_guardar_credenciales() {
+cmd_save_credentials() {
   local target="${1:-}"
   local email password
   case "$target" in
-    llavero)
-      has_keychain || die "El llavero solo está disponible en macOS" "Usa: $SCRIPT guardar-credenciales zsh"
+    keychain)
+      has_keychain || die "El llavero solo está disponible en macOS" "Usa: $SCRIPT save-credentials zsh"
       require_tty
       email="$(ask "Email de Factorial")"
       [ -n "$email" ] || die "El email no puede estar vacío"
@@ -251,12 +251,12 @@ cmd_guardar_credenciales() {
       hint "Abre una terminal nueva para que las coja tu shell."
       ;;
     *)
-      die "Indica dónde guardarlas: llavero o zsh"
+      die "Indica dónde guardarlas: keychain o zsh"
       ;;
   esac
 }
 
-cmd_comprobar() {
+cmd_check() {
   command -v node >/dev/null 2>&1 || die "Hace falta Node.js 18 o superior"
   load_credentials
   local result
@@ -284,7 +284,7 @@ try {
       ;;
     invalid)
       die "Email o contraseña incorrectos" \
-        "Vuelve a guardarlas con: $SCRIPT guardar-credenciales llavero (o zsh)"
+        "Vuelve a guardarlas con: $SCRIPT save-credentials keychain (o zsh)"
       ;;
     waf)
       die "El cortafuegos de Factorial ha bloqueado el login (HTTP 403)" \
@@ -300,8 +300,8 @@ try {
   esac
 }
 
-ENTRADA=""
-SALIDA=""
+ENTRY_HOUR=""
+EXIT_HOUR=""
 ALEATORIO=""
 PROYECTO=""
 PROYECTO_SET=""
@@ -311,11 +311,11 @@ MONTH=""
 parse_options() {
   while [ $# -gt 0 ]; do
     case "$1" in
-      --entrada) ENTRADA="${2:-}"; shift 2 ;;
-      --salida) SALIDA="${2:-}"; shift 2 ;;
-      --aleatorio) ALEATORIO="${2:-}"; shift 2 ;;
-      --proyecto) PROYECTO="${2:-}"; PROYECTO_SET=1; shift 2 ;;
-      --sin-proyecto) PROYECTO=""; PROYECTO_SET=1; shift ;;
+      --entry) ENTRY_HOUR="${2:-}"; shift 2 ;;
+      --exit) EXIT_HOUR="${2:-}"; shift 2 ;;
+      --random) ALEATORIO="${2:-}"; shift 2 ;;
+      --project) PROYECTO="${2:-}"; PROYECTO_SET=1; shift 2 ;;
+      --no-project) PROYECTO=""; PROYECTO_SET=1; shift ;;
       --year) YEAR="${2:-}"; shift 2 ;;
       --month) MONTH="${2:-}"; shift 2 ;;
       -h|--help) usage; exit 0 ;;
@@ -332,12 +332,12 @@ validate_schedule() {
   [ $(( ($2 - $1) * 60 )) -gt $(( $3 * 2 )) ] || die "El aleatorio es demasiado grande para esa franja"
 }
 
-cmd_configurar() {
+cmd_configure() {
   parse_options "$@"
-  local entrada="${ENTRADA:-$(config_get FICHAR_ENTRADA)}"
-  local salida="${SALIDA:-$(config_get FICHAR_SALIDA)}"
+  local entrada="${ENTRY_HOUR:-$(config_get FICHAR_ENTRADA)}"
+  local salida="${EXIT_HOUR:-$(config_get FICHAR_SALIDA)}"
   local aleatorio="${ALEATORIO:-$(config_get FICHAR_ALEATORIO)}"
-  [ -n "$entrada" ] && [ -n "$salida" ] || die "Indica --entrada y --salida"
+  [ -n "$entrada" ] && [ -n "$salida" ] || die "Indica --entry y --exit"
   aleatorio="${aleatorio:-0}"
   validate_schedule "$entrada" "$salida" "$aleatorio"
   config_set FICHAR_ENTRADA "$entrada"
@@ -358,16 +358,16 @@ run_cli() {
   esac
 }
 
-cmd_fichar() {
+cmd_fill() {
   parse_options "$@"
-  schedule_complete || die "Falta la configuración del horario" "Guárdala con: $SCRIPT configurar --entrada H --salida H --aleatorio N"
+  schedule_complete || die "Falta la configuración del horario" "Guárdala con: $SCRIPT configure --entry H --exit H --random N"
   is_int "$YEAR" && [ "$YEAR" -ge 2000 ] || die "Indica el año con --year AAAA"
   is_int "$MONTH" && [ "$((10#$MONTH))" -ge 1 ] && [ "$((10#$MONTH))" -le 12 ] || die "Indica el mes con --month, entre 1 y 12"
   local mes=$((10#$MONTH))
   [ $(( YEAR * 100 + mes )) -le "$(date +%Y%m)" ] || die "No se puede fichar un mes futuro"
 
-  local entrada="${ENTRADA:-$(config_get FICHAR_ENTRADA)}"
-  local salida="${SALIDA:-$(config_get FICHAR_SALIDA)}"
+  local entrada="${ENTRY_HOUR:-$(config_get FICHAR_ENTRADA)}"
+  local salida="${EXIT_HOUR:-$(config_get FICHAR_SALIDA)}"
   local aleatorio="${ALEATORIO:-$(config_get FICHAR_ALEATORIO)}"
   local proyecto
   if [ -n "$PROYECTO_SET" ]; then
@@ -394,12 +394,12 @@ main() {
   local cmd="${1:-}"
   [ $# -gt 0 ] && shift
   case "$cmd" in
-    estado) cmd_estado ;;
-    guardar-credenciales) cmd_guardar_credenciales "$@" ;;
-    comprobar) cmd_comprobar ;;
-    configurar) cmd_configurar "$@" ;;
-    fichar) cmd_fichar "$@" ;;
-    ""|-h|--help|ayuda) usage ;;
+    status) cmd_status ;;
+    save-credentials) cmd_save_credentials "$@" ;;
+    check) cmd_check ;;
+    configure) cmd_configure "$@" ;;
+    fill) cmd_fill "$@" ;;
+    ""|-h|--help|help) usage ;;
     *) usage >&2; exit 1 ;;
   esac
 }

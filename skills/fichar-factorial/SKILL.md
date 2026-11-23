@@ -5,13 +5,13 @@ description: Rellena los fichajes del usuario en Factorial con factorial-cli, co
 
 # Fichar en Factorial
 
-Todo pasa por `scripts/fichar.sh`, dentro del directorio base de esta skill (te lo indica el sistema al cargarla; suele ser un enlace al repo clonado). Llámalo siempre con su **ruta absoluta**; en esta guía aparece como `fichar.sh`. Si el usuario ya ejecutó `install.sh` con la configuración, los pasos 2 a 4 estarán hechos. Ese script envuelve [`factorial-cli`](https://github.com/DanielRamosAcosta/factorial-cli) 1.0.18 y lo lanza con `pnpm dlx`, o con `npx` si no hay pnpm.
+Todo pasa por `scripts/factorial.sh`, dentro del directorio base de esta skill (te lo indica el sistema al cargarla; suele ser un enlace al repo clonado). Llámalo siempre con su **ruta absoluta**; en esta guía aparece como `factorial.sh`. Si el usuario ya ejecutó `install.sh` con la configuración, los pasos 2 a 4 estarán hechos. Ese script envuelve [`factorial-cli`](https://github.com/DanielRamosAcosta/factorial-cli) 1.0.18 y lo lanza con `pnpm dlx`, o con `npx` si no hay pnpm.
 
 ## Reglas
 
 - **Nunca pidas la contraseña en el chat, ni la leas, ni la muestres.** Las credenciales las guarda el usuario en su propia terminal; el script las lee dentro del propio comando.
 - No pases nunca `--email` ni `--password` al CLI ni hagas `echo` de las variables `FACTORIAL_USER_*`.
-- No lances `fichar` sin una confirmación explícita del usuario en esta conversación y para ese mes.
+- No lances `fill` sin una confirmación explícita del usuario en esta conversación y para ese mes.
 
 ## Cómo funciona el CLI (explícaselo al usuario cuando toque)
 
@@ -24,7 +24,7 @@ Todo pasa por `scripts/fichar.sh`, dentro del directorio base de esta skill (te 
 ## Flujo
 
 ### 1. Estado
-Ejecuta `fichar.sh estado`. Desde el agente (sin terminal) devuelve líneas `clave: valor` sin secretos: `credenciales` (`llavero`, `zsh` o `ninguna`), `cuenta`, `configuracion` (`ok` o `falta`), `entrada`, `salida`, `aleatorio`, `proyecto`, `horario` (texto ya formateado), `ejecutor` y `node`. En una terminal sale como tabla con colores.
+Ejecuta `factorial.sh status`. Desde el agente (sin terminal) devuelve líneas `clave: valor` sin secretos: `credenciales` (`llavero`, `zsh` o `ninguna`), `cuenta`, `configuracion` (`ok` o `falta`), `entrada`, `salida`, `aleatorio`, `proyecto`, `horario` (texto ya formateado), `ejecutor` y `node`. En una terminal sale como tabla con colores.
 
 - Si `node` es `falta` o el `ejecutor` es `ninguno`, dile que instale Node.js 18 o superior (y pnpm, si quiere) y para.
 - Si `credenciales` es `ninguna`, ve al paso 2.
@@ -34,21 +34,21 @@ Ejecuta `fichar.sh estado`. Desde el agente (sin terminal) devuelve líneas `cla
 ### 2. Credenciales (primera vez)
 Pregunta con `AskUserQuestion` dónde las tiene o dónde quiere guardarlas:
 
-- **Ya las tengo en zsh**: tiene `FACTORIAL_USER_EMAIL` y `FACTORIAL_USER_PASSWORD` exportadas en `~/.zshrc`. Vuelve a ejecutar `estado`; si sigue saliendo `ninguna`, revisa con él los nombres de las variables (sin enseñar su valor).
+- **Ya las tengo en zsh**: tiene `FACTORIAL_USER_EMAIL` y `FACTORIAL_USER_PASSWORD` exportadas en `~/.zshrc`. Vuelve a ejecutar `status`; si sigue saliendo `ninguna`, revisa con él los nombres de las variables (sin enseñar su valor).
 - **Guardarlas en el llavero de macOS** (recomendado en Mac): no quedan en texto plano.
 - **Guardarlas en `~/.zshrc`**: más sencillo, pero la contraseña queda en texto plano en ese fichero.
 
 Para las dos últimas, dale este comando para que lo ejecute **en su propia terminal**, fuera del agente, porque pide la contraseña de forma interactiva (sustituye la ruta por la absoluta):
 
 ```bash
-"/ruta/absoluta/a/scripts/fichar.sh" guardar-credenciales llavero
-"/ruta/absoluta/a/scripts/fichar.sh" guardar-credenciales zsh
+"/ruta/absoluta/a/scripts/factorial.sh" save-credentials keychain
+"/ruta/absoluta/a/scripts/factorial.sh" save-credentials zsh
 ```
 
-También puede ejecutar `./install.sh` desde el repo clonado, que hace las credenciales y el horario de una vez. Recuérdale que el login es con email y contraseña de Factorial, no con Google. Si solo entra con Google, tiene que crearse primero una contraseña en Factorial. Espera a que diga que ya está y vuelve a ejecutar `estado`.
+También puede ejecutar `./install.sh` desde el repo clonado, que hace las credenciales y el horario de una vez. Recuérdale que el login es con email y contraseña de Factorial, no con Google. Si solo entra con Google, tiene que crearse primero una contraseña en Factorial. Espera a que diga que ya está y vuelve a ejecutar `status`.
 
 ### 3. Comprobar las credenciales
-Ejecuta `fichar.sh comprobar`. Solo hace login en Factorial; no toca ningún fichaje.
+Ejecuta `factorial.sh check`. Solo hace login en Factorial; no toca ningún fichaje.
 
 - `✔ Credenciales válidas`: sigue.
 - `✖ Email o contraseña incorrectos`: que repita el paso 2 en su terminal (sobrescribe lo anterior).
@@ -70,8 +70,8 @@ Pregunta con `AskUserQuestion`, en una sola tanda:
 Guárdalo con:
 
 ```bash
-fichar.sh configurar --entrada <H> --salida <H> --aleatorio <0|N> --proyecto "<nombre>"
-fichar.sh configurar --entrada <H> --salida <H> --aleatorio <0|N> --sin-proyecto
+factorial.sh configure --entry <H> --exit <H> --random <0|N> --project "<nombre>"
+factorial.sh configure --entry <H> --exit <H> --random <0|N> --no-project
 ```
 
 Si quiere cambiar el horario más adelante («cambia mi horario», «ponlo aleatorio»), vuelve a este paso.
@@ -89,23 +89,23 @@ Antes de ejecutar, enséñale un resumen y espera un sí explícito (`AskUserQue
 - **Aviso: se borrarán todos los fichajes de ese mes, también los manuales, y se volverán a crear.**
 - Que revise que sus vacaciones, festivos y ausencias estén en Factorial, porque si no se ficharán.
 
-Si pide otro horario o quitar el proyecto **solo para esta vez**, pásalo como opción a `fichar` sin tocar la configuración. Si pide saltarse un día concreto, explica que el CLI no puede: o registra ese día como ausencia en Factorial antes, o lo borra él a mano después.
+Si pide otro horario o quitar el proyecto **solo para esta vez**, pásalo como opción a `fill` sin tocar la configuración. Si pide saltarse un día concreto, explica que el CLI no puede: o registra ese día como ausencia en Factorial antes, o lo borra él a mano después.
 
 ### 7. Fichar
 Lanza el comando desde un directorio temporal (no desde un repo):
 
 ```bash
-fichar.sh fichar --year <AAAA> --month <M>
+factorial.sh fill --year <AAAA> --month <M>
 ```
 
-Opciones solo para esta ejecución: `--entrada`, `--salida`, `--aleatorio`, `--proyecto "<nombre>"` o `--sin-proyecto`.
+Opciones solo para esta ejecución: `--entry`, `--exit`, `--random`, `--project "<nombre>"` o `--no-project`.
 
 ### 8. Resultado
 El script traduce la salida del CLI: una cuadrícula con los días fichados (`✔ lun 03`…), el total (`✔ 15 días fichados`) y, si los hay, los días entre semana que se han saltado (`Saltados entre semana: lun 02`). Resume en una o dos líneas qué días se han fichado y cuáles se han saltado, para que el usuario vea si falta alguna ausencia en Factorial.
 
 Errores habituales:
 - `✖ Email o contraseña incorrectos`: vuelve al paso 2.
-- `✖ El proyecto «<nombre>» no existe en Factorial`: el nombre no coincide (tildes, mayúsculas…). Pregúntale el nombre exacto, guárdalo con `configurar --proyecto` y vuelve a lanzarlo; no hace falta repetir la confirmación si el mes no cambia.
+- `✖ El proyecto «<nombre>» no existe en Factorial`: el nombre no coincide (tildes, mayúsculas…). Pregúntale el nombre exacto, guárdalo con `configure --project` y vuelve a lanzarlo; no hace falta repetir la confirmación si el mes no cambia.
 - `✖ Factorial devuelve más de un empleado activo para tu cuenta`: es un problema de la cuenta en Factorial; no se arregla desde aquí.
 - `✖ El CLI de Factorial ha fallado`: debajo van las últimas líneas del error original; resúmeselas.
 - `! El mes puede haber quedado a medias`: ya se borró y solo se rellenó en parte. Díselo y propón lanzarlo otra vez.

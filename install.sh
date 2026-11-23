@@ -5,7 +5,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_NAME="fichar-factorial"
 SKILL_SRC="$REPO_DIR/skills/$SKILL_NAME"
 SCRIPTS_DIR="$SKILL_SRC/scripts"
-FICHAR="$SCRIPTS_DIR/fichar.sh"
+FICHAR="$SCRIPTS_DIR/factorial.sh"
 SKILLS_DIR="$HOME/.claude/skills"
 CONFIGURE=1
 
@@ -15,17 +15,17 @@ usage() {
   cat <<EOF
 $(paint 1 "fichar-factorial · instalación")
 
-Uso: ./install.sh [--dir DIRECTORIO] [--sin-configurar]
+Uso: ./install.sh [--dir DIRECTORIO] [--no-configure]
 
   --dir DIRECTORIO   Directorio de skills de tu agente (por defecto, ~/.claude/skills)
-  --sin-configurar   Solo enlaza la skill; las credenciales y el horario se piden al usarla
+  --no-configure     Solo enlaza la skill; las credenciales y el horario se piden al usarla
 EOF
 }
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --dir) SKILLS_DIR="${2:-}"; [ -n "$SKILLS_DIR" ] || die "Falta el directorio después de --dir"; shift 2 ;;
-    --sin-configurar) CONFIGURE=0; shift ;;
+    --no-configure) CONFIGURE=0; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "Opción desconocida: $1" "Consulta las opciones con: ./install.sh --help" ;;
   esac
@@ -37,7 +37,7 @@ TOTAL_STEPS=1
 [ "$INTERACTIVE" -eq 1 ] && TOTAL_STEPS=4
 
 state() {
-  "$FICHAR" estado | sed -n "s/^$1: //p"
+  "$FICHAR" status | sed -n "s/^$1: //p"
 }
 
 check_requirements() {
@@ -96,8 +96,8 @@ configure_credentials() {
   local option
   option="$(ask "Opción" "$default_option")"
   case "$option" in
-    1) FICHAR_INDENT="$UI_INDENT" "$FICHAR" guardar-credenciales llavero ;;
-    2) FICHAR_INDENT="$UI_INDENT" "$FICHAR" guardar-credenciales zsh ;;
+    1) FICHAR_INDENT="$UI_INDENT" "$FICHAR" save-credentials keychain ;;
+    2) FICHAR_INDENT="$UI_INDENT" "$FICHAR" save-credentials zsh ;;
     3)
       [ "$(state credenciales)" != "ninguna" ] \
         || die "No encuentro FACTORIAL_USER_EMAIL y FACTORIAL_USER_PASSWORD" "Ni en tu entorno ni en ~/.zshrc."
@@ -110,7 +110,7 @@ configure_credentials() {
 check_credentials() {
   section "[3/4] Comprobación"
   local UI_INDENT="  "
-  FICHAR_INDENT="$UI_INDENT" "$FICHAR" comprobar || die "Revisa las credenciales y vuelve a ejecutar ./install.sh"
+  FICHAR_INDENT="$UI_INDENT" "$FICHAR" check || die "Revisa las credenciales y vuelve a ejecutar ./install.sh"
   hint "Solo se ha hecho login; no se ha tocado ningún fichaje."
 }
 
@@ -135,9 +135,9 @@ configure_schedule() {
   fi
   proyecto="$(ask "Proyecto de Factorial, con el nombre exacto (vacío si no usas proyectos)" "")"
   if [ -n "$proyecto" ]; then
-    FICHAR_INDENT="$UI_INDENT" "$FICHAR" configurar --entrada "$entrada" --salida "$salida" --aleatorio "$aleatorio" --proyecto "$proyecto"
+    FICHAR_INDENT="$UI_INDENT" "$FICHAR" configure --entry "$entrada" --exit "$salida" --random "$aleatorio" --project "$proyecto"
   else
-    FICHAR_INDENT="$UI_INDENT" "$FICHAR" configurar --entrada "$entrada" --salida "$salida" --aleatorio "$aleatorio" --sin-proyecto
+    FICHAR_INDENT="$UI_INDENT" "$FICHAR" configure --entry "$entrada" --exit "$salida" --random "$aleatorio" --no-project
   fi
 }
 
