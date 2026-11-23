@@ -5,7 +5,7 @@ Skill para rellenar tus fichajes de Factorial desde tu agente de IA (Claude Code
 Por debajo usa [`factorial-cli`](https://github.com/DanielRamosAcosta/factorial-cli), de Daniel Ramos, fijado a la versión 1.0.18. Este repo añade:
 
 - Una **skill** que pide confirmación antes de fichar y, si hace falta, te guía para guardar las credenciales y elegir el horario.
-- Un **script** (`fichar.sh`) que guarda tu configuración, lee las credenciales sin exponerlas y lanza el CLI. También se puede usar a mano, sin agente.
+- Un **script** (`factorial.sh`) que guarda tu configuración, lee las credenciales sin exponerlas y lanza el CLI. También se puede usar a mano, sin agente.
 - Un **instalador** (`install.sh`) que enlaza la skill y te configura credenciales y horario.
 
 ## Requisitos
@@ -25,7 +25,7 @@ cd fichar-factorial
 
 El instalador:
 
-1. Enlaza la skill en `~/.claude/skills/fichar-factorial` (un enlace simbólico al repo, así que para actualizar basta con `git pull`). Si ya tenías una carpeta con ese nombre, te pregunta y la mueve a una copia de seguridad.
+1. Enlaza la skill en `~/.claude/skills/fichar-factorial` (un enlace simbólico al repo, así que para actualizar basta con `git pull`). Si ya tenías una carpeta con ese nombre, te pregunta y la mueve a `~/.claude/backups/`, fuera de `skills/` para que el agente no la cargue como otra skill.
 2. Te pregunta dónde guardar tu email y tu contraseña de Factorial, o si ya los tienes en zsh:
    - **Llavero de macOS** (recomendado): servicio `factorial-cli`.
    - **`~/.zshrc`**: un bloque entre `# >>> fichar-factorial >>>` y `# <<< fichar-factorial <<<`. La contraseña queda en texto plano.
@@ -38,11 +38,11 @@ Puedes volver a ejecutar `./install.sh` cuando quieras para cambiar las credenci
 Opciones:
 
 - `--dir DIRECTORIO`: enlaza la skill en el directorio de skills de otro agente, en vez de `~/.claude/skills`.
-- `--sin-configurar`: solo enlaza la skill; las credenciales y el horario te los pedirá el agente la primera vez.
+- `--no-configure`: solo enlaza la skill; las credenciales y el horario te los pedirá el agente la primera vez.
 
 ## Uso
 
-Dile a tu agente «ficha», «ficha este mes», «ficha noviembre» o «ficha el mes pasado». Antes de fichar te enseña el mes, los días y el horario, y espera tu confirmación.
+Dile a tu agente «ficha», «ficha este mes», «ficha noviembre» o «ficha el mes pasado». Antes de fichar te enseña el mes, los días y el horario, y espera tu confirmación. Al terminar verás los días fichados y los días entre semana que se han saltado, para comprobar que no falta ninguna ausencia en Factorial.
 
 ## Cosas a tener en cuenta
 
@@ -56,21 +56,23 @@ Dile a tu agente «ficha», «ficha este mes», «ficha noviembre» o «ficha el
 - **Proyecto con el nombre exacto.** Si no coincide con el de Factorial (tildes, mayúsculas…), falla con `Project <nombre> not found`.
 - **Si falla a mitad, el mes puede quedar a medias** (ya borrado y en parte rellenado). Vuelve a lanzarlo.
 - **Verificación en dos pasos o solo Google**: el login con email y contraseña no funcionará.
-- **Contraseñas con `$` o comillas**: el cortafuegos de Factorial puede bloquear el login con un 403, porque las toma por un intento de inyección. Si `comprobar` dice que el cortafuegos lo ha bloqueado, cambia la contraseña de Factorial.
+- **Contraseñas con `$` o comillas**: el cortafuegos de Factorial puede bloquear el login con un 403, porque las toma por un intento de inyección. Si `check` dice que el cortafuegos lo ha bloqueado, cambia la contraseña de Factorial.
 
 ## Uso sin agente
 
 ```bash
-S=skills/fichar-factorial/scripts/fichar.sh
+S=skills/fichar-factorial/scripts/factorial.sh
 
-$S estado
-$S guardar-credenciales llavero
-$S comprobar
-$S configurar --entrada 8 --salida 16 --aleatorio 10 --proyecto "Nombre del proyecto"
-$S fichar --anio 2026 --mes 11
+$S status
+$S save-credentials keychain
+$S check
+$S configure --entry 8 --exit 16 --random 10 --project "Nombre del proyecto"
+$S fill --year 2026 --month 11
 ```
 
-Opciones de `fichar` solo para esa ejecución: `--entrada`, `--salida`, `--aleatorio`, `--proyecto "<nombre>"` y `--sin-proyecto`.
+Opciones de `fill` solo para esa ejecución: `--entry`, `--exit`, `--random`, `--project "<nombre>"` y `--no-project`.
+
+En una terminal la salida va con colores; para quitarlos, define `NO_COLOR=1`. Cuando la salida no es una terminal (por ejemplo, desde el agente), `status` devuelve líneas `clave: valor`.
 
 ## Seguridad
 
